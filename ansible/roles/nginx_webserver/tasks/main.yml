@@ -1,0 +1,43 @@
+---
+# 1. Actualiza el índice de paquetes apt (equivalente a sudo apt update)
+- name: Actualizar la caché del gestor de paquetes apt
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600 # No vuelve a actualizar si se ejecutó hace menos de 1 hora
+
+# 2. Instala el servidor web Nginx
+- name: Instalar el paquete Nginx
+  apt:
+    name: nginx
+    state: present
+
+# 3. Copia y procesa la plantilla Jinja2 hacia el directorio de Nginx
+- name: Desplegar la página HTML personalizada desde plantilla Jinja2
+  template:
+    src: index.html.j2
+    dest: /var/www/html/index.html
+    owner: www-data
+    group: www-data
+    mode: '0644'
+
+# 4. Inicia el servicio y asegura que arranque automáticamente al reiniciar el sistema
+- name: Asegurar que el servicio Nginx esté iniciado y habilitado
+  service:
+    name: nginx
+    state: started
+    enabled: true
+
+# 5. Verificación de Salud Local (Self-Check)
+- name: Validar que Nginx responde correctamente de forma local (HTTP 200)
+  uri:
+    url: http://localhost/
+    status_code: 200
+  register: result
+  until: result.status == 200
+  retries: 5
+  delay: 3
+
+# 6. Pausa estratégica para la sincronización con el Load Balancer de AWS
+- name: Esperar la propagación de salud en el Target Group del ALB
+  pause:
+    seconds: 10

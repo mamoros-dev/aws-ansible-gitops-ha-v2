@@ -1,0 +1,18 @@
+---
+- name: Configurar e Instalar Servidores Web en Alta Disponibilidad
+  # Apunta al grupo dinámico creado por el plugin aws_ec2 basado en la etiqueta Role=webservers
+  hosts: role_webservers
+  become: true # Ejecuta con privilegios de superusuario (sudo)
+
+  # --- ESTRATEGIA ZERO DOWNTIME ---
+  # 'serial: 1' obliga a Ansible a procesar las instancias DE UNA EN UNA.
+  # No pasa a la siguiente máquina hasta que el rol termine con éxito en la actual.
+  serial: 1
+
+  # Si 1 sola máquina falla en el despliegue, aborta la ejecución inmediatamente
+  # para evitar romper el resto del clúster.
+  max_fail_percentage: 0
+
+  roles:
+    # Invoca las tareas definidas dentro del rol nginx_webserver
+    - role: nginx_webserver
