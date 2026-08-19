@@ -186,8 +186,8 @@ resource "aws_autoscaling_group" "web_asg" {
     id      = aws_launch_template.web_template.id
     version = "$Latest"
   }
-
-  health_check_type         = "ELB" # El ASG se apoya en los Health Checks del Load Balancer
+  # CAMBIO CLAVE: Usamos EC2 para que el ASG no mate la instancia mientras Ansible instala Nginx
+  health_check_type         = "EC2"
   health_check_grace_period = 300
 
   lifecycle {
