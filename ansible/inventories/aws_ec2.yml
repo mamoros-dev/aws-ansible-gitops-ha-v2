@@ -9,7 +9,7 @@ regions:
 filters:
   instance-state-name: running          # Solo máquinas encendidas
   tag:Role: webservers                  # Creadas por nuestro Launch Template
-  tag:Project: aws-ansible-gitops-ha-v2 # De este proyecto específico
+  #tag:Project: aws-ansible-gitops-ha-v2 # De este proyecto específico
 
 # Propiedad de la EC2 que usaremos como nombre de host para conectar por SSH
 hostnames:
@@ -19,5 +19,5 @@ hostnames:
 keyed_groups:
   - key: tags.Role
     prefix: role   # Creará el grupo 'role_webservers'
-  - key: tags.Environment
-    prefix: env    # Creará el grupo 'env_production'
+  #- key: tags.Environment
+  #  prefix: env    # Creará el grupo 'env_production'

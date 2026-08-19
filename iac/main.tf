@@ -162,6 +162,7 @@ resource "aws_launch_template" "web_template" {
     tags = {
       Name        = "ha-web-server"
       Role        = "webservers"
+      Project     = "aws-ansible-gitops-ha-v2"
       Environment = var.environment
     }
   }
