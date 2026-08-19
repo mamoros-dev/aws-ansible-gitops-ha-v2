@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>HA Cluster v2 - Zero Downtime</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; background-color: #f4f4f9; }
+    .card { background: white; padding: 25px; display: inline-block; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    h1 { color: #2c3e50; margin-bottom: 10px; }
+    .status { color: #27ae60; font-weight: bold; }
+    .host { background: #eef2f5; padding: 5px 10px; border-radius: 4px; font-family: monospace; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>🚀 Desplegado con Ansible Roles & GitOps v2</h1>
+    <p>Atendido desde el servidor: <span class="host">{{ ansible_hostname }}</span></p>
+    <p>Dirección IP Privada: <span class="host">{{ ansible_default_ipv4.address }}</span></p>
+    <p>Estado del Clúster: <span class="status">OK (Zero Downtime)</span></p>
+  </div>
+</body>
+</html>
