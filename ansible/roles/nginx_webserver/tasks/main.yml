@@ -4,6 +4,10 @@
   apt:
     update_cache: yes
     cache_valid_time: 3600 # No vuelve a actualizar si se ejecutó hace menos de 1 hora
+  register: apt_result
+  until: apt_result is success
+  retries: 3 # reintento en el apt update por si la base de datos de paquetes de Ubuntu está bloqueada temporalmente al arrancar.
+  delay: 10
 
 # 2. Instala el servidor web Nginx
 - name: Instalar el paquete Nginx

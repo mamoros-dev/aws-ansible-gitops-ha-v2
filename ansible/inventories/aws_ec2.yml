@@ -3,21 +3,20 @@ plugin: amazon.aws.aws_ec2
 
 # Región de AWS donde buscar las instancias
 regions:
+  - eu-west-1
   - us-east-1
 
 # Filtros para traer ÚNICAMENTE las instancias del clúster actual
 filters:
   instance-state-name: running          # Solo máquinas encendidas
   tag:Role: webservers                  # Creadas por nuestro Launch Template
-  #tag:Project: aws-ansible-gitops-ha-v2 # De este proyecto específico
 
 # Propiedad de la EC2 que usaremos como nombre de host para conectar por SSH
 hostnames:
+  - public-ip-address
   - ip-address
 
 # Crea grupos dinámicos en Ansible basándose en las etiquetas (Tags) de AWS
 keyed_groups:
   - key: tags.Role
     prefix: role   # Creará el grupo 'role_webservers'
-  #- key: tags.Environment
-  #  prefix: env    # Creará el grupo 'env_production'
