@@ -13,8 +13,8 @@ filters:
 
 # Propiedad de la EC2 que usaremos como nombre de host para conectar por SSH
 hostnames:
-  - public-ip-address
   - ip-address
+  - dns-name
 
 # Crea grupos dinámicos en Ansible basándose en las etiquetas (Tags) de AWS
 keyed_groups:
