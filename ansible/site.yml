@@ -1,3 +1,6 @@
+# --- File for Ansible Playbook: site.yml ---
+# This playbook is the main entry point for configuring web servers in high availability.
+# Este playbook es el punto de entrada principal para la configuración de servidores web en alta disponibilidad.
 ---
 - name: Configurar e Instalar Servidores Web en Alta Disponibilidad
   # Apunta al grupo dinámico creado por el plugin aws_ec2 basado en la etiqueta Role=webservers

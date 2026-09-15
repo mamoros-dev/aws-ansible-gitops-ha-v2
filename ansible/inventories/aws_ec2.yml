@@ -1,21 +1,26 @@
+# Especifies the inventory plugin to use for this file
 # Especifica qué plugin de Ansible procesará este archivo
 plugin: amazon.aws.aws_ec2
 
+# Region of AWS where to look for instances
 # Región de AWS donde buscar las instancias
 regions:
   - eu-west-1
   - us-east-1
 
+# filters to fetch ONLY the instances of the current cluster
 # Filtros para traer ÚNICAMENTE las instancias del clúster actual
 filters:
   instance-state-name: running          # Solo máquinas encendidas
   tag:Role: webservers                  # Creadas por nuestro Launch Template
 
+# Propierty of the EC2 that we will use as the hostname to connect via SSH
 # Propiedad de la EC2 que usaremos como nombre de host para conectar por SSH
 hostnames:
   - ip-address
   - dns-name
 
+# create dynamic groups based on AWS tags
 # Crea grupos dinámicos en Ansible basándose en las etiquetas (Tags) de AWS
 keyed_groups:
   - key: tags.Role
