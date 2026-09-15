@@ -1,3 +1,5 @@
+# --- Terraform Configuration ---
+# --- Configuración de Terraform ---
 terraform {
   required_version = ">= 1.5.0"
   required_providers {
@@ -15,6 +17,8 @@ terraform {
   }
 }
 
+# --- Provider Configuration ---
+# --- Configuración del Proveedor ---
 provider "aws" {
   region = var.aws_region
   default_tags {
@@ -26,7 +30,8 @@ provider "aws" {
   }
 }
 
-# --- 1. RED ---
+# --- VPC and Subnets ---
+# --- VPC y Subredes ---
 data "aws_vpc" "default" {
   default = true
 }
@@ -39,12 +44,14 @@ data "aws_subnets" "default" {
 }
 
 # --- 2. KEY PAIR ---
+# --- 2. PAR DE CLAVES ---
 resource "aws_key_pair" "ha_key" {
   key_name   = "ha-cluster-ssh-key"
   public_key = var.ssh_public_key
 }
 
 # --- 3. SECURITY GROUPS ---
+# --- 3. GRUPOS DE SEGURIDAD ---
 resource "aws_security_group" "alb_sg" {
   name        = "ha-alb-sg"
   description = "Permite acceso HTTP publico al Load Balancer"
@@ -93,6 +100,7 @@ resource "aws_security_group" "ec2_sg" {
 }
 
 # --- 4. LOAD BALANCER ---
+# --- 4. BALANCEADOR DE CARGA ---
 resource "aws_lb" "main_alb" {
   name               = "ha-cluster-alb"
   internal           = false
@@ -130,6 +138,7 @@ resource "aws_lb_listener" "http_listener" {
 }
 
 # --- 5. LAUNCH TEMPLATE ---
+# --- 5. PLANTILLA DE LANZAMIENTO ---
 data "aws_ami" "ubuntu" {
   most_recent = true
   owners      = ["099720109477"]
@@ -167,6 +176,7 @@ resource "aws_launch_template" "web_template" {
 }
 
 # --- 6. AUTO SCALING GROUP ---
+# --- 6. GRUPO DE AUTOESCALADO ---
 resource "aws_autoscaling_group" "web_asg" {
   name_prefix         = "ha-asg-"
   vpc_zone_identifier = data.aws_subnets.default.ids
@@ -189,7 +199,8 @@ resource "aws_autoscaling_group" "web_asg" {
     create_before_destroy = true
   }
 }
-
+# --- 7. SSM PARAMETER STORE ---
+# --- 7. ALMACENAMIENTO DE PARÁMETROS SSM ---
 resource "aws_ssm_parameter" "token_api" {
   name        = "/produccion/servicios/token_api"
   description = "Token de API seguro en SSM"

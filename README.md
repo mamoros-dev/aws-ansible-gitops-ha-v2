@@ -1,151 +1,150 @@
 # 🚀 DevOps HA Cluster v2 — Terraform & Ansible GitOps (Zero-Downtime)
 
-+ Este proyecto implementa una arquitectura de **Alta Disponibilidad (HA)** en AWS aplicando principios de **GitOps** e **Infraestructura como Código (IaC)**. 
-+ El clúster despliega un grupo de servidores web Nginx detrás de un **Application Load Balancer (ALB)** respaldado por un **Auto Scaling Group (ASG)**, con aprovisionamiento dinámico y despliegue continuo sin tiempo de inactividad (**Zero-Downtime**) mediante **Ansible** y **GitHub Actions**.
+[![Terraform](https://img.shields.io/badge/Terraform-1.5+-844FBA?logo=terraform)](https://www.terraform.io/)
+[![Ansible](https://img.shields.io/badge/Ansible-2.15+-EE0000?logo=ansible)](https://www.ansible.com/)
+[![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-CI%2FCD-2088FF?logo=githubactions)](https://github.com/features/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-## 📐 Arquitectura del Sistema
+🇪🇸 [Spanish version and more info](./docs/es/README-es.md)
 
-```text
-               [ Cliente / Navegador ]
-                          │
-                          ▼
-           [ Application Load Balancer (ALB) ]
-                          │
-            ┌─────────────┴─────────────┐
-            ▼                           ▼
-  [ EC2 - Webserver 1 ]       [ EC2 - Webserver 2 ]
-  (Ubuntu + Nginx)            (Ubuntu + Nginx)
-            └─────────────┬─────────────┘
-                          ▲
-                          │ (Ansible Inventory - Tag: Role=webservers)
-           [ GitHub Actions CI/CD Pipeline ]
-```
-+ Application Load Balancer (ALB): Distribuye el tráfico HTTP públicamente entre las instancias EC2 saludables.
-+ Auto Scaling Group (ASG): Garantiza un mínimo de 2 instancias distribuidas en múltiples Zonas de Disponibilidad (AZs).
-+ Ansible Dynamic Inventory (`aws_ec2`): Descubre automáticamente las instancias en ejecución basándose en etiquetas (`tag:Role: webservers`).
-+ Zero-Downtime Strategy (`serial: 1`): Ansible actualiza las máquinas de una en una para garantizar disponibilidad del 100%.
+![diagrama](./docs/images/diagrama.png)  
 
-## 🛠️ Tecnologías Utilizadas
-+ **Infraestructura como Código:** Terraform (Backend S3 + DynamoDB Lock).
-+ **Gestión de Configuración:** Ansible (Roles, Jinja2, Inventario Dinámico AWS EC2).
-+ **Proveedor Cloud:** AWS (VPC, Subnets, ALB, ASG, Launch Templates, Security Groups).
-+ **CI/CD & GitOps:** GitHub Actions.
-+ **Servidor Web:** Nginx sobre Ubuntu 22.04 LTS.
++ Production-grade, highly available (HA) web architecture deployed across multiple Availability Zones in AWS. Infrastructure is provisioned using Terraform and configured via Ansible using dynamic EC2 inventory discovery and encrypted Vault secrets.
+ 
++ The cluster deploys a group of Nginx web servers behind an **Application Load Balancer (ALB)** backed by an **Auto Scaling Group (ASG)**, featuring dynamic provisioning and continuous, **zero-downtime** deployment using **Ansible** and **GitHub Actions**.
 
-## 🧠 Decisiones de Arquitectura & Justificación
+## Table of contents
 
-* **Estrategia Zero-Downtime (`serial: 1`):** Se configuró Ansible para actualizar las instancias del clúster de una en una. Esto garantiza que mientras una máquina se aprovisiona, la otra mantiene el 100% del tráfico web activo.
-* **Separación de Responsabilidades (IaC vs GitOps):** Terraform se encarga exclusivamente de la infraestructura inmutable (red, ASG, ALB), mientras que Ansible gestiona la capa de software y archivos de configuración.
-* **Health Check a Nivel de EC2 en ASG (`health_check_type = "EC2"`):** Se eligió validación por hardware/OS en lugar de HTTP directo en el ASG durante el arranque para evitar que AWS destruyera prematuramente máquinas que aún estaban en proceso de aprovisionamiento por SSH mediante Ansible.
-* **Inventario Dinámico por Etiquetas (`tag:Role: webservers`):** Se eliminó el uso de IPs estáticas. Ansible descubre automáticamente las instancias vivas en AWS consultando la API dinámicamente antes de cada despliegue.
+- [Architecture Decisions](#architecture-decisions)
+- [Infrastructure Verification](#infrastructure-verification)
+- [How to install and run the project](#how-to-install-and-run-the-project)
+- [How to use the project](#how-to-use-the-project)`
+- [Stack](#stack)
+- [Status](#status)
+- [Author](#author)
 
-## 📁 Estructura del Repositorio
-```bash
-.
-├── .github/
-│   └── workflows/
-│       ├── deploy.yml         # Pipeline de despliegue continuo (Terraform + Ansible)
-│       └── destroy.yml        # Pipeline para destrucción de infraestructura
-├── ansible/
-│   ├── inventories/
-│   │   └── aws_ec2.yml        # Inventario dinámico de AWS
-│   ├── roles/
-│   │   └── nginx_webserver/   # Rol para instalar y configurar Nginx
-│   │       ├── tasks/
-│   │       │   └── main.yml
-│   │       └── templates/
-│   │           └── index.html.j2
-│   ├── ansible.cfg            # Configuración de Ansible y reintentos SSH
-│   └── site.yml               # Playbook principal con estrategia Zero-Downtime
-├── iac/
-│   ├── main.tf                # Definición de la infraestructura en AWS
-│   ├── variables.tf           # Declaración de variables
-│   ├── outputs.tf             # Outputs (DNS del ALB, etc.)
-│   └── terraform.tfvars       # Valores de variables (excluido en .gitignore)
-└── README.md
-```
+## Architecture Decisions
 
-## Pasos para Despliegue Automático (GitOps)
-+ Clona el repositorio:
+* **Multi-AZ High Availability:** Infrastructure spans across two distinct Availability Zones (AZs) using public and private subnets behind an Application Load Balancer (ALB).
+* **Stateless Web Tier:** EC2 instances are configured symmetrically via Ansible playbooks to ensure smooth traffic distribution and failover handling by the ALB.
+* **Dynamic Inventory Management:** Ansible dynamically discovers target EC2 instances using AWS resource tags (`aws_ec2` plugin), removing the need for hardcoded IP addresses in static inventories.
+* **Encrypted Configuration Secrets:** Sensitive configuration values and credentials managed within Ansible roles are encrypted at rest using Ansible Vault (`AES-256`).
+* **Zero-Downtime Updates:** Sequential provisioning tasks and health-checked load balancer target groups allow rolling updates to web servers without service disruption.
+
+## Infrastructure Verification
+
+* **AWS ALB & Target Group Health:**
+  All EC2 instances registered across multiple AZs and marked as `Healthy` in the target group:
+  ![ALB Target Group Health](docs/images/target-group.png)
+
+* **Ansible Dynamic Discovery & Playbook Execution:**
+  Ansible dynamic inventory discovering instances and executing tasks cleanly:
+  ![Ansible Playbook Execution](docs/images/asg_pipeline.png)
+
+* **Web Application Verification:**
+  Accessing the application through the ALB DNS endpoint showing dynamic host facts:
+  ![HA Web Application Live](docs/images/alb-ip1_v1.png)  
+  ![HA Web Application Live](docs/images/alb-ip2_v1.png)  
+
+* **Resilience and Self-Recovery Test**:
+  Simulation of a web content update to demonstrate zero-downtime deployment
+  ![](./docs/images/web_update-pipeline.png)
+  ![](./docs/images/alb-ip1_v2.png)  
+  ![](./docs/images/alb-ip2_v2.png)  
+
+  Failure simulation by terminating an instance. The ALB maintained 100% of the traffic on the surviving instance with no service interruption, while the Auto Scaling Group launched a new EC2 instance that rejoined the cluster following Ansible execution.
+  ![](./docs/images/asg.png)  
+  ![](./docs/images/alb-ip1_v1.png)  
+  In this case, only the instance with this IP remains active.  
+  ![](./docs/images/asg2.png)  
+  ![](./docs/images/asg_pipeline.png)  
+  ![](./docs/images/alb-ip1_v3.png)  
+  ![](./docs/images/alb-ip2_v3.png)  
+  ![](./docs/images/target-group2.png)
+
+## How to install and run the project
+
+### Option A: Automated Deployment via GitHub Actions
+
+1. **Fork or Clone the repository:**
+   ```bash
+   git clone https://github.com/mamoros-dev/aws-ansible-gitops-ha-v2.git
+   cd aws-ansible-gitops-ha-v2
+   ```
+
+2. **Configure GitHub Repository Secrets:**
+    - Navigate to Settings -> Secrets and variables -> Actions and add:
+        - `AWS_ACCESS_KEY_ID`: Your AWS IAM access key ID.
+        - `AWS_SECRET_ACCESS_KEY`: Your AWS IAM secret access key.
+        - `AWS_REGION`: Target AWS region (e.g., us-east-1).
+        - `SSH_PRIVATE_KEY`: Private SSH key used by Ansible to connect to EC2 instances.
+        - `SSH_PUBLIC_KEY`: Public SSH key injected into EC2 instances for deployment.
+
+3. **Trigger Pipeline:**
+    - Pull Requests: Opening a PR targeting `main` automatically runs syntax checks, security linting, and `terraform plan`.
+    - Direct Merge / Push: Merging into `main` automatically executes `terraform apply` to provision multi-AZ AWS infrastructure and triggers the Ansible playbook via dynamic inventory.
+
+### Option A: Manual CLI Deployment
+
+1. **Provision AWS Infrastructure with Terraform:**
 ```Bash
-git clone [https://github.com/tu-usuario/aws-ansible-gitops-ha-v2.git](https://github.com/tu-usuario/aws-ansible-gitops-ha-v2.git)
-cd aws-ansible-gitops-ha-v2
+cd iac/
+terraform init
+terraform plan -var="ssh_public_key=$(cat ~/.ssh/aws_ansible_key.pub)"
+terraform apply -var="ssh_public_key=$(cat ~/.ssh/aws_ansible_key.pub)" -auto-approve
 ```
+> Terraform provisions the VPC, Multi-AZ Subnets, Security Groups, EC2 instances, and ALB, tagging instances for dynamic discovery.  
+> Change `aws_ansible_key.pub` for your SSH public key
 
-+ Realiza cualquier cambio o simplemente haz un push a la rama main:
+2. **Verify Inventory & Run Configuration Management:**
 ```Bash
-git commit -m "feat: despliegue de infraestructura HA"
-git push origin main
+cd ../
+
+# Verify AWS dynamic inventory discovers active EC2 instances
+ansible-inventory -i ansible/inventories/aws_ec2.yml --graph
+
+# Execute the playbook using the local vault password file
+ansible-playbook -i ansible/inventories/aws_ec2.yml ansible/site.yml \
+  --key-file ~/.ssh/aws_ansible_key \
+  -u ubuntu \
+  --ssh-common-args='-o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null'
 ```
-+ Observa en la pestaña Actions de GitHub cómo Terraform crea la infraestructura y Ansible configura el clúster.
-+ Obtén el DNS del ALB desde la salida de GitHub Actions y abre la URL en tu navegador.
 
-## 🧪 Pruebas de Validacion y Resultados
-+ **Despliegue Automatizado y Balanceo de Carga**:
-    - Al acceder al DNS del ALB, se verifica que las peticiones se distribuyen de forma alternada entre las direcciones IP privadas del clúster.  
-    ![](./docs/images/alb-ip1_v1.png)  
-    ![](./docs/images/alb-ip2_v1.png)  
+## How to use the project
 
-+ **Estado de Salud en AWS Target Group**:
-    - Verificación en la consola de AWS EC2 de que ambas instancias se encuentran registradas y reportando estado Healthy.  
-    ![](./docs/images/target-group.png)  
+Once the infrastructure and application servers are fully provisioned, follow these steps to verify and interact with the deployment.
 
-+ **Pipeline de CI/CD en GitHub Actions**:
-    - Ejecución limpia del pipeline completando la fase de Terraform Apply y el aprovisionamiento en serie mediante Ansible Playbook.  
-    ![](./docs/images/workflow_deploy3.png)  
-    ![](./docs/images/workflow_deploy4.png)  
+1. Verify High Availability & Traffic Balancing
+    Retrieve the Application Load Balancer (ALB) DNS name from the Terraform outputs or the AWS Management Console:
+    ```Bash
+    # Query the ALB endpoint
+    curl -i http://<your-alb-dns-name>
+    ```
 
-+ **Prueba de Resiliencia y Auto-recuperación**:
-    - Simulación de cambio de texto en la web y ver el despliegue Zero-Downtime
-    ![](./docs/images/web_update-pipeline.png)
-    ![](./docs/images/alb-ip1_v2.png)  
-    ![](./docs/images/alb-ip2_v2.png)  
+    Execute multiple consecutive requests to verify that incoming traffic is distributed across EC2 instances spanning multiple Availability Zones:
+    ```Bash
+    # Loop multiple requests to inspect dynamic host response
+    for i in {1..5}; do curl -s http://<your-alb-dns-name> | grep "Host Name"; done
+    ```
 
-    - Simulación de fallo apoderándonos de una instancia (Terminate Instance). El ALB mantuvo el 100% del tráfico en la instancia superviviente sin caída del servicio, mientras el Auto Scaling Group lanzó una nueva EC2 y se re-integró al clúster tras la ejecución de Ansible.
-    ![](./docs/images/asg.png)  
-    ![](./docs/images/alb-ip1_v1.png)  
-    En este caso solo se mantiene la de esta IP.  
-    ![](./docs/images/asg2.png)  
-    ![](./docs/images/asg_pipeline.png)  
-    ![](./docs/images/alb-ip1_v3.png)  
-    ![](./docs/images/alb-ip2_v3.png)  
-    ![](./docs/images/target-group2.png)  
+2. Updating Infrastructure or Application State
+    - To modify cloud resources: Update the .tf files under iac/terraform/.
+    - To update OS configuration or web content: Edit the Ansible playbooks, roles, or templates under iac/roles/.
+    - Push your changes to a feature branch and open a Pull Request to review the automated plan before merging.
 
-## ⚠️ Desafíos Técnicos Encontrados y Soluciones
-
-Durante el desarrollo e integración continua surgieron varios retos de infraestructura real que fueron diagnosticados y resueltos:
-
-### 1. Error `502 Bad Gateway` en el ALB
-* **Causa:** Las instancias del ASG recién creadas no tenían Nginx instalado todavía, por lo que el ALB no tenía hosts saludables a los que redirigir tráfico.
-* **Solución:** Implementación de pausas estratégicas (`sleep`) en el pipeline de CI/CD y tareas de verificación de puerto SSH (`wait_for`) en Ansible antes de la instalación de paquetes.
-
-### 2. Incompatibilidad de Zonas de Disponibilidad en AWS (`us-east-1e`)
-* **Causa:** AWS devolvía un fallo al intentar crear instancias `t3.micro` en la zona `us-east-1e` por falta de capacidad bajo demanda.
-* **Solución:** Se aplicó un filtro en Terraform sobre `data "aws_subnets"` para restringir el despliegue únicamente a zonas compatibles (`us-east-1a`, `1b`, `1c`, `1d`, `1f`).
-
-### 3. Falsos Positivos de SSH (`UNREACHABLE` / `Connection refused`)
-* **Causa:** El proceso del sistema `cloud-init` de Ubuntu reiniciaba brevemente el demonio `sshd` durante el primer arranque de la máquina, cortando la sesión de Ansible.
-* **Solución:** Se configuraron reintentos de conexión SSH automáticos (`retries = 3`) en `ansible.cfg` y un bloque `pre_tasks` que espera el readiness de SSH.
-
-## 🧹 Destrucción de la Infraestructura
-+ Para destruir todos los recursos creados en AWS y evitar costes:
-    - Vía GitHub Actions:
-        - Ir a Actions ➔ Destroy Infrastructure ➔ Run workflow.
-    - Vía Terminal Local:
-        ```Bash
-        cd iac
-        terraform init -reconfigure
-        terraform destroy -auto-approve
-        ```
+3. Teardown & Resource Cleanup
+To destroy all provisioned AWS resources and avoid unnecessary charges, execute:
+    ```Bash
+    cd iac/
+    terraform destroy -var="ssh_public_key=$(cat ~/.ssh/aws_ansible_key.pub)" -auto-approve
+    ```
 
 ## Stack
++ Terraform 1.15 · Checkov · Trivy · TFLint · AWS (VPC, EC2, ASG, ALB, RDS, IAM) · Systems Manager · Remote Backend on S3 + DynamoDB · GitHub Actions · OIDC · GitHub Environments
 
-+ Terraform 1.15 · Checkov · Trivy · TFLint · AWS (VPC, EC2, ASG, ALB, RDS, IAM) · Systems Manager · Backend remoto en S3 + DynamoDB · GitHub Actions · OIDC · GitHub Environments
+## Status
+* **Status:** `Completed`
+* **Test Results:** Provisioning, Load Balancing, and Self-recovery/Kill Test passed.
 
-## Estado del Proyecto
-* **Estado:** `Completado`
-* **Resultado de Pruebas:** Aprovisionamiento, Balanceo de Carga y Test de Auto-recuperación/Kill Test aprobados.
-
-## Autor
-
+## Author
 + Miguel — [GitHub](https://github.com/mamoros-dev) · [LinkedIn](https://www.linkedin.com/in/miguel-amoros-moret/)
